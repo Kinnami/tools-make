@@ -8198,11 +8198,14 @@ int test (Test *o)
 }
 
 _ACEOF
+# CJEC, 9-Dec-21: FIXME: This test does not work on gcc/MINGW64 even though it compiles and links and exceptions (mostly) work
 if ac_fn_c_try_compile "$LINENO"; then :
   USE_OBJC_EXCEPTIONS=yes
 else
   USE_OBJC_EXCEPTIONS=no
 fi
+# CJEC, 9-Dec-21: FIXME: Force exceptions to be enabled. Note: This doesn't work. config.make still has USE_OBJC_EXCEPTIONS = no. Should be yes
+USE_OBJC_EXCEPTIONS=yes
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     if test x"$USE_OBJC_EXCEPTIONS" = x"no"; then
       { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
