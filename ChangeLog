@@ -1,3 +1,25 @@
+2022-03-01  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* TestFramework/gnustep-tests.in:
+	When using TestInfo send stdout and stderr to /dev/null so that
+	thy don't interfere with the test output.
+
+2022-02-16  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* TestFramework/gnustep-tests.in:
+	Fix bug introduced in rewrite for parallelisation: we were getting
+	immediate end of testing when one file failed, but that behavior
+	should only occur when --failfast is specified.
+
+2022-01-26  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* TestFramework/README:
+	* TestFramework/TestInfo:
+	* TestFramework/gnustep-tests.in:
+	Add support for controlling test execution using SEQUENCE and PARALLEL
+	in TestInfo to control the order of seuntial tests and the running of
+	concurrent tests.
+
 2021-03-28  Frederik Seiffert <frederik@algoriddim.com>
 
 	* TestFramework/Testing.h:
