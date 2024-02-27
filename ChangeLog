@@ -1,3 +1,64 @@
+2024-02-14  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* common.make:
+	* rules.make:
+	Rewrite 'javac -h' code because its usage turns out to be quite
+	different from that of the javah command it is supposed to replace.
+	Possibly the header generation and class file generation could/should
+	be combined in a single pass, but we can't readily do that without
+	breakign compatibility with older versions of java.
+
+2024-02-11  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Documentation/gnustep-make.texi:
+	* common.make:
+	* messages.make:
+	* rules.make:
+	* target.make:
+	Use 'javac -h' if 'javah' does not exist, since the separate tool was
+	removed after version 8.  Update comments to match the change.
+
+2023-12-12  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* TestFramework/gnustep-tests.in: Exit if no bash available
+	* configure.ac: Require bash for test framework
+	* configure: Regenerate
+
+2023-12-05  Yavor Doganov  <yavor@gnu.org>
+
+	* Documentation/gnustep-make.texi: Fix PDF generation with
+	texinfo/7.1; reorder sectioning commands.
+	* Documentation/gnustep-filesystem.texi: Likewise.
+
+2022-02-06  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Instance/Documentation/texi.make: for index.html specify explicit
+	output file for texi2html (Debian Bug#1030387)
+
+2023-02-06  Riccard Mottola <rm@gnu.org>
+
+	* Master/source-distribution.make
+	Try to implement .dist-ignore support for git-dist: after archive,
+	export and recompress again by excluding .dist-ignore
+
+2022-12-28  Richard Frith-Macdonald <rfm@gnu.org>
+
+        * ANNOUNCE:
+	* NEWS:
+	* RELEASENOTES:
+	* Documentation/news.texi:
+	* Documentation/releasenotes.texi:
+	Update announcement and release notes for 2.9.1.
+	* Version: Bump version to 2.9.1.
+
+2022-12-05  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* TestFramework/gnustep-tests.in: use the -a option to force grep
+	to treat log files as text rather than binary.  If treated as binary
+	it would not extract the information we need.
+	* TestFramework/Testing.h: fix uninitialised variable in the macro
+	to test for a regexp match.
+
 2022-03-01  Richard Frith-Macdonald <rfm@gnu.org>
 
 	* TestFramework/gnustep-tests.in:

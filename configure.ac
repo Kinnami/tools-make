@@ -85,6 +85,15 @@ AC_PROG_OBJCXX
 # We may use egrep for some tests further down below
 AC_PROG_EGREP
 
+# Search for a debugger. We try 'gdb' then 'lldb'.  If
+# we can't find it, we set it to 'gdb', even if that will fail later
+# on.
+AC_CHECK_PROGS(DEBUGGER, [gdb lldb], gdb)
+
+# Used by gnustep-config to output the debugger variable and
+# gnustep-tests.
+AC_SUBST(DEBUGGER)
+
 #--------------------------------------------------------------------
 # Check if we are using Apple cc
 #--------------------------------------------------------------------
@@ -1160,6 +1169,13 @@ elif test "$host_os" = linux-gnu; then
     LIBS="$OBJCRT"
     AC_RUN_IFELSE([AC_LANG_SOURCE([[#include "config_thread.m"]])],[objc_threaded="works"],[objc_threaded=""],[objc_threaded="works"])
   fi
+elif test "$host_os" = linux-musl; then
+  LIBS="$OBJCRT -lpthread"
+  AC_RUN_IFELSE([AC_LANG_SOURCE([[#include "config_thread.m"]])],[objc_threaded="-lpthread"],[objc_threaded=""],[objc_threaded="-lpthread"])
+  if test x"$objc_threaded" = x""; then
+    LIBS="$OBJCRT"
+    AC_RUN_IFELSE([AC_LANG_SOURCE([[#include "config_thread.m"]])],[objc_threaded="works"],[objc_threaded=""],[objc_threaded="works"])
+  fi
 elif test "`echo $host_os|sed 's/[[0-9]].*//'|sed s/elf//`" = freebsd; then
   LIBS="-pthread $OBJCRT"
   AC_RUN_IFELSE([AC_LANG_SOURCE([[#include "config_thread.m"]])],[objc_threaded="-pthread"],[objc_threaded=""],[objc_threaded="-pthread"])
@@ -1753,8 +1769,17 @@ AC_CHECK_PROGS(LATEX2HTML, latex2html)
 #--------------------------------------------------------------------
 # For test framework
 #--------------------------------------------------------------------
-AC_PATH_PROG(SHELLPROG,bash,/bin/sh)
+AC_PATH_PROG(SHELLPROG, bash)
 AC_PATH_PROG(TESTPROG, test)
+if test x"$SHELLPROG" = x""; then
+  echo "Unable to find the bash program (needed for testsuite)."
+  SHELLPROG=/bin/sh
+  MISSINGBASH=YES
+else
+  MISSINGBASH=NO
+fi
+AC_SUBST(MISSINGBASH)
+
 
 #--------------------------------------------------------------------
 # Produce the output files
@@ -1762,6 +1787,7 @@ AC_PATH_PROG(TESTPROG, test)
 AC_CONFIG_FILES([config-noarch.make config.make openapp opentool 
 executable.template GNUmakefile GNUstep.conf GNUstep-strict-v2.conf
 GNUstep.sh GNUstep.csh fixpath.sh
+GNUstep-reset.sh
 gnustep-make.spec gnustep-config TestFramework/gnustep-tests
 filesystem.make filesystem.sh filesystem.csh gnustep-make-ld.so.conf])
 AC_CONFIG_FILES([runtime/$OBJC_RUNTIME_LIB.make:config.make.in])

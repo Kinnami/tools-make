@@ -204,7 +204,20 @@ ifeq ($(AUTO_DEPENDENCIES_FLAGS),)
 endif
 endif
 
+#
+# Detect ARC support
 ifeq ($(OBJC_RUNTIME_LIB), ng)
+  GS_RUNTIME_HAS_ARC = 1
+endif
+ifeq ($(OBJC_RUNTIME_LIB), apple)
+  DARWIN_VERSION = $(patsubst darwin%,%,$(filter darwin%, $(GNUSTEP_TARGET_OS)))
+# Initial release of ARC in darwin10
+  ifeq ($(shell echo "$(DARWIN_VERSION) >= 10" | bc), 1)
+    GS_RUNTIME_HAS_ARC = 1
+  endif
+endif
+
+ifneq ($(GS_RUNTIME_HAS_ARC),)
   # Projects may control the use of ARC by defining GS_WITH_ARC=1
   # or GS_WITH_ARC=0 in their GNUmakefile, or in the environment,
   # or as an argument to the 'make' command.
@@ -659,10 +672,28 @@ endif
 # Example of how this rule will be applied: 
 # gnu/gnustep/base/NSObject.h : gnu/gnustep/base/NSObject.java
 #	javah -o gnu/gnustep/base/NSObject.h gnu.gnustep.base.NSObject
+# or, on more recent releases than 8, we have to use javac and move the
+# resulting header file around t the correct location as javac does not
+# provide command line options to control the output file name.
+# NB. javac also fails to produce a header file when a java file does
+# not produce class information, so we catch that and generate an empty
+# header  where necessary.
 %.h : %.java
-	$(ECHO_JAVAHING)$(JAVAH) \
-	         $(filter-out $($<_FILE_FILTER_OUT_FLAGS),$(ALL_JAVAHFLAGS)) \
-	         $($<_FILE_FLAGS) -o $@ $(subst /,.,$*)$(END_ECHO)
+	$(ECHO_NOTHING)if [ -x $(JAVAH) ]; then \
+	  $(JAVAH) \
+	    $(filter-out $($<_FILE_FILTER_OUT_FLAGS),$(ALL_JAVAHFLAGS)) \
+	    $($<_FILE_FLAGS) -o $@ $(subst /,.,$*); \
+        else \
+	  JAVA_DST_DIR=`dirname $@`; \
+	  $(JAVAC) -h $$JAVA_DST_DIR -sourcepath `dirname $*` \
+	    $(filter-out $($<_FILE_FILTER_OUT_FLAGS),$(ALL_JAVAHFLAGS)) \
+	    $($<_FILE_FLAGS) $*.java; \
+	  if [ -e $$JAVA_DST_DIR/$(subst /,_,$@) ]; then \
+	    mv $$JAVA_DST_DIR/$(subst /,_,$@) $$JAVA_DST_DIR/`basename $@`; \
+	  else \
+	    touch $$JAVA_DST_DIR/`basename $@`; \
+	  fi \
+	fi$(END_ECHO)
 
 %.c : %.psw
 	pswrap -h $*.h -o $@ $<

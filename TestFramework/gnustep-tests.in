@@ -29,6 +29,13 @@
 # oldtests.log and oldtests.sum, available for comparison.
 # The exit value of the script is 0 if there are no failures, 1 otherwise.
 
+if test "@MISSINGBASH@" = "YES"; then
+  echo "gnustep-make was unable to find bash at configure time."
+  echo "The test framework cannot run without bash installed."
+  echo "Please install bash and reconfigure/reinstall gnustep-make."
+  exit 0
+fi
+
 if test -z "$GNUSTEP_MAKEFILES"; then
   GNUSTEP_MAKEFILES=`gnustep-config --variable=GNUSTEP_MAKEFILES 2>/dev/null`
   if test -z "$GNUSTEP_MAKEFILES"; then
@@ -49,6 +56,9 @@ export GSTESTDIR
 
 GSTESTMODE=normal
 
+GSMAKEOPTIONS="debug=yes"
+GSVERBOSECFLAG=
+
 # Argument checking
 while test $# != 0
 do
@@ -59,6 +69,12 @@ do
       ;;
     --debug)
       GSTESTDBG="$GSTESTDIR/gdb.cmds"
+      ;;
+    --make-debug)
+      GSMAKEOPTIONS+=" --debug"
+      ;;
+    --make-no-silent)
+      GSMAKEOPTIONS+=" --no-silent"
       ;;
     --developer)
       GSTESTDEV=yes
@@ -82,6 +98,8 @@ do
       ;;
     --verbose)
       GSVERBOSE=yes
+      GSMAKEOPTIONS+=" messages=yes"
+      GSVERBOSECFLAG="-v"
       ;;
     --failfast)
       GSTESTMODE=failfast
@@ -95,7 +113,9 @@ do
       echo "Use 'gnustep-tests --documentation' for full details."
       echo "Use 'gnustep-tests --clean' to remove old logs and leftover files."
       echo "Use 'gnustep-tests --failfast' to stop after the first failure."
-      echo "Use 'gnustep-tests --debug' to run gdb for any failed tests."
+      echo "Use 'gnustep-tests --debug' to run gdb/lldb for any failed tests."
+      echo "Use 'gnustep-tests --make-debug' to enable make debug output."
+      echo "Use 'gnustep-tests --make-no-silent' to disable silent make output."
       echo "Use 'gnustep-tests --developer' to treat hopes as real tests."
       echo "Use 'gnustep-tests --verbose' for full/detailed log output."
       echo "Use 'gnustep-tests --sequential' to disable parallel building."
@@ -287,7 +307,7 @@ extract()
   shift
   while test $# != 0
   do
-    grep "$1" "$f"
+    grep -a "$1" "$f"
     shift
   done
 }
@@ -305,7 +325,7 @@ present()
   shift
   while test $# != 0
   do
-    grep "$1" "$f" >/dev/null
+    grep -a "$1" "$f" >/dev/null
     if test $? = "0"
     then
       return 0
@@ -350,23 +370,19 @@ build_test ()
         tmp=`basename $TESTFILE .c`
         if test x"$tmp" = x"$TESTFILE"
         then
-          BUILD_CMD="$CXX -o ./obj/$TESTNAME $TESTFILE $ADDITIONAL_CXXFLAGS $ADDITIONAL_LDFLAGS"
+          BUILD_CMD="$CXX -o $GSVERBOSECFLAG ./obj/$TESTNAME $TESTFILE $ADDITIONAL_CXXFLAGS $ADDITIONAL_LDFLAGS"
         else
-          BUILD_CMD="$CC -o ./obj/$TESTNAME $TESTFILE $ADDITIONAL_CFLAGS $ADDITIONAL_LDFLAGS"
+          BUILD_CMD="$CC -o $GSVERBOSECFLAG ./obj/$TESTNAME $TESTFILE $ADDITIONAL_CFLAGS $ADDITIONAL_LDFLAGS"
         fi
       else
-        BUILD_CMD="$OBJCXX -o ./obj/$TESTNAME $TESTFILE $GSTESTFLAGS $GSTESTLIBS"
+        BUILD_CMD="$OBJCXX -o $GSVERBOSECFLAG ./obj/$TESTNAME $TESTFILE $GSTESTFLAGS $GSTESTLIBS"
       fi
     else
-      BUILD_CMD="$CC -o ./obj/$TESTNAME $TESTFILE $GSTESTFLAGS $GSTESTLIBS"
+      BUILD_CMD="$CC -o $GSVERBOSECFLAG ./obj/$TESTNAME $TESTFILE $GSTESTFLAGS $GSTESTLIBS"
     fi
   else
-    if test x"$GSVERBOSE" = xyes
-    then
-      BUILD_CMD="$MAKE_CMD messages=yes debug=yes $TESTNAME"
-    else
-      BUILD_CMD="$MAKE_CMD debug=yes $TESTNAME"
-    fi
+    echo $GSMAKEOPTIONS
+    BUILD_CMD="$MAKE_CMD $GSMAKEOPTIONS $TESTNAME"
   fi
 
   # Redirect errors to stdout so it shows up in the log,
@@ -517,14 +533,16 @@ proc_test_log ()
 
   if test x"$GSTESTDBG" != x
   then
+    DEBUGGER=`gnustep-config --variable=DEBUGGER`
+    EXT=`gnustep-config --variable=EXEEXT`
     if present "$GSTESTSUM.tmp" "^Failed test:"
     then
-      grep '^Failed test:' "$GSTESTLOG.tmp" | sed -e 's/^Failed test:[^:]*:\([0-9][0-9]*\).*/break testStart if testLineNumber==\1/' > "$GSTESTDBG"
-      gdb "./obj/$TESTNAME" -x "$GSTESTDBG"
+      grep -a '^Failed test:' "$GSTESTLOG.tmp" | sed -e 's/^Failed test:[^:]*:\([0-9][0-9]*\).*/break testStart if testLineNumber==\1/' > "$GSTESTDBG"
+      $DEBUGGER "./obj/$TESTNAME"$EXT -x "$GSTESTDBG"
       rm -f "$GSTESTDBG"
     elif present "$GSTESTSUM.tmp" "^Failed file:"
     then
-      gdb "./obj/$TESTNAME"
+      $DEBUGGER "./obj/$TESTNAME"$EXT
     fi
   fi
 
@@ -714,9 +732,9 @@ ${tmp}_OBJC_FILES=$TESTFILE"
             echo "Building in $dir" >>$GSTESTLOG
             if test -r ./make-check.env
             then
-              ( . ./make-check.env; . ./TestInfo > /dev/null 2>&1; $MAKE_CMD -j 4 debug=yes) >>$GSTESTLOG 2>&1
+              ( . ./make-check.env; . ./TestInfo > /dev/null 2>&1; $MAKE_CMD -j 4 $GSMAKEOPTIONS) >>$GSTESTLOG 2>&1
             else
-              ( . ./TestInfo > /dev/null 2>&1; $MAKE_CMD -j 4 debug=yes) >>$GSTESTLOG 2>&1
+              ( . ./TestInfo > /dev/null 2>&1; $MAKE_CMD -j 4 $GSMAKEOPTIONS) >>$GSTESTLOG 2>&1
             fi
             build_state=$?
           fi
