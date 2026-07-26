@@ -82,6 +82,9 @@ AC_PROG_CXX
 # Similarly for the ObjC++ compiler...
 AC_PROG_OBJCXX
 
+# The test framework uses grep
+AC_PROG_GREP
+
 # We may use egrep for some tests further down below
 AC_PROG_EGREP
 
@@ -228,25 +231,7 @@ if test "x$target" != "x$host"; then
   AC_CHECK_PROG(DLLTOOL, "${targetArgument}-dlltool", dnl
                          "${targetArgument}-dlltool", dlltool)
 else
-  if test "$OBJC_RUNTIME_LIB" = ng; then
-    #
-    # Detect compiler support for Blocks; perhaps someday -fblocks won't be
-    # required, in which case we'll need to change this.
-    #
-    saveCFLAGS="$CFLAGS"
-    CFLAGS="$CFLAGS -fblocks"
-    AC_LANG_PUSH(C)
-    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[(void)^{int i; i = 0; }();])], [
-      ac_cv_blocks="yes"
-    ], [
-      ac_cv_blocks="no"
-    ])
-    CFLAGS="$saveCFLAGS"
-    AC_LANG_POP(C)
-    if test "$ac_cv_blocks" = no; then
-      AC_MSG_ERROR([Your compiler doesn't appear to support blocks. To fix this use the CC environment varibale to specify a different compiler (or use a different library-combo)]);
-    fi
-  fi
+
   AC_CHECK_PROG(AR,      ar,      ar)
   AC_CHECK_PROG(DLLTOOL, dlltool, dlltool)
   AC_PROG_RANLIB
@@ -393,6 +378,16 @@ if test ! -f "$srcdir/FilesystemLayouts/$GNUSTEP_FILESYSTEM_LAYOUT_FILE" >&5 2>&
   exit 1
 fi
 
+AC_MSG_CHECKING([for architecture-specific lib path])
+AC_ARG_WITH(libdir,[
+--with-libdir=FILE
+   Set the variant of the /lib directory to use.  This is useful on systems
+   which support more than one binary format requiring separate libraries.
+   The default is lib.
+   Example: --with-libdir=lib64
+],
+  LIBDIR="$withval",LIBDIR="lib")
+
 # Need to do some checks related to building dylibs on darwin.
 GNUSTEP_ABSOLUTE_INSTALL_PATHS=;
 
@@ -509,38 +504,38 @@ AC_SUBST(GNUSTEP_PREFIX)
 # '/home' - we never install anything in there).
 GNUSTEP_MAKEFILES="$GNUSTEP_PREFIX$GNUSTEP_MAKEFILES"
 
-GNUSTEP_SYSTEM_APPS="$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_APPS"
-GNUSTEP_SYSTEM_ADMIN_APPS="$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_ADMIN_APPS"
-GNUSTEP_SYSTEM_WEB_APPS="$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_WEB_APPS"
+GNUSTEP_SYSTEM_APPS=$(echo "$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_APPS" | sed "s/@libdir@/$LIBDIR/g")
+GNUSTEP_SYSTEM_ADMIN_APPS=$(echo "$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_ADMIN_APPS" | sed "s/@libdir@/$LIBDIR/g")
+GNUSTEP_SYSTEM_WEB_APPS=$(echo "$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_WEB_APPS" | sed "s/@libdir@/$LIBDIR/g")
 GNUSTEP_SYSTEM_TOOLS="$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_TOOLS"
 GNUSTEP_SYSTEM_ADMIN_TOOLS="$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_ADMIN_TOOLS"
-GNUSTEP_SYSTEM_LIBRARY="$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_LIBRARY"
+GNUSTEP_SYSTEM_LIBRARY=$(echo "$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_LIBRARY" | sed "s/@libdir@/$LIBDIR/g")
 GNUSTEP_SYSTEM_HEADERS="$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_HEADERS"
-GNUSTEP_SYSTEM_LIBRARIES="$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_LIBRARIES"
+GNUSTEP_SYSTEM_LIBRARIES=$(echo "$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_LIBRARIES" | sed "s/@libdir@/$LIBDIR/g")
 GNUSTEP_SYSTEM_DOC="$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_DOC"
 GNUSTEP_SYSTEM_DOC_MAN="$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_DOC_MAN"
 GNUSTEP_SYSTEM_DOC_INFO="$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_DOC_INFO"
 
-GNUSTEP_NETWORK_APPS="$GNUSTEP_PREFIX$GNUSTEP_NETWORK_APPS"
-GNUSTEP_NETWORK_ADMIN_APPS="$GNUSTEP_PREFIX$GNUSTEP_NETWORK_ADMIN_APPS"
-GNUSTEP_NETWORK_WEB_APPS="$GNUSTEP_PREFIX$GNUSTEP_NETWORK_WEB_APPS"
+GNUSTEP_NETWORK_APPS=$(echo "$GNUSTEP_PREFIX$GNUSTEP_NETWORK_APPS" | sed "s/@libdir@/$LIBDIR/g")
+GNUSTEP_NETWORK_ADMIN_APPS=$(echo "$GNUSTEP_PREFIX$GNUSTEP_NETWORK_ADMIN_APPS" | sed "s/@libdir@/$LIBDIR/g")
+GNUSTEP_NETWORK_WEB_APPS=$(echo "$GNUSTEP_PREFIX$GNUSTEP_NETWORK_WEB_APPS" | sed "s/@libdir@/$LIBDIR/g")
 GNUSTEP_NETWORK_TOOLS="$GNUSTEP_PREFIX$GNUSTEP_NETWORK_TOOLS"
 GNUSTEP_NETWORK_ADMIN_TOOLS="$GNUSTEP_PREFIX$GNUSTEP_NETWORK_ADMIN_TOOLS"
-GNUSTEP_NETWORK_LIBRARY="$GNUSTEP_PREFIX$GNUSTEP_NETWORK_LIBRARY"
+GNUSTEP_NETWORK_LIBRARY=$(echo "$GNUSTEP_PREFIX$GNUSTEP_NETWORK_LIBRARY" | sed "s/@libdir@/$LIBDIR/g")
 GNUSTEP_NETWORK_HEADERS="$GNUSTEP_PREFIX$GNUSTEP_NETWORK_HEADERS"
-GNUSTEP_NETWORK_LIBRARIES="$GNUSTEP_PREFIX$GNUSTEP_NETWORK_LIBRARIES"
+GNUSTEP_NETWORK_LIBRARIES=$(echo "$GNUSTEP_PREFIX$GNUSTEP_NETWORK_LIBRARIES" | sed "s/@libdir@/$LIBDIR/g")
 GNUSTEP_NETWORK_DOC="$GNUSTEP_PREFIX$GNUSTEP_NETWORK_DOC"
 GNUSTEP_NETWORK_DOC_MAN="$GNUSTEP_PREFIX$GNUSTEP_NETWORK_DOC_MAN"
 GNUSTEP_NETWORK_DOC_INFO="$GNUSTEP_PREFIX$GNUSTEP_NETWORK_DOC_INFO"
 
-GNUSTEP_LOCAL_APPS="$GNUSTEP_PREFIX$GNUSTEP_LOCAL_APPS"
-GNUSTEP_LOCAL_ADMIN_APPS="$GNUSTEP_PREFIX$GNUSTEP_LOCAL_ADMIN_APPS"
-GNUSTEP_LOCAL_WEB_APPS="$GNUSTEP_PREFIX$GNUSTEP_LOCAL_WEB_APPS"
+GNUSTEP_LOCAL_APPS=$(echo "$GNUSTEP_PREFIX$GNUSTEP_LOCAL_APPS" | sed "s/@libdir@/$LIBDIR/g")
+GNUSTEP_LOCAL_ADMIN_APPS=$(echo "$GNUSTEP_PREFIX$GNUSTEP_LOCAL_ADMIN_APPS" | sed "s/@libdir@/$LIBDIR/g")
+GNUSTEP_LOCAL_WEB_APPS=$(echo "$GNUSTEP_PREFIX$GNUSTEP_LOCAL_WEB_APPS" | sed "s/@libdir@/$LIBDIR/g")
 GNUSTEP_LOCAL_TOOLS="$GNUSTEP_PREFIX$GNUSTEP_LOCAL_TOOLS"
 GNUSTEP_LOCAL_ADMIN_TOOLS="$GNUSTEP_PREFIX$GNUSTEP_LOCAL_ADMIN_TOOLS"
-GNUSTEP_LOCAL_LIBRARY="$GNUSTEP_PREFIX$GNUSTEP_LOCAL_LIBRARY"
+GNUSTEP_LOCAL_LIBRARY=$(echo "$GNUSTEP_PREFIX$GNUSTEP_LOCAL_LIBRARY" | sed "s/@libdir@/$LIBDIR/g")
 GNUSTEP_LOCAL_HEADERS="$GNUSTEP_PREFIX$GNUSTEP_LOCAL_HEADERS"
-GNUSTEP_LOCAL_LIBRARIES="$GNUSTEP_PREFIX$GNUSTEP_LOCAL_LIBRARIES"
+GNUSTEP_LOCAL_LIBRARIES=$(echo "$GNUSTEP_PREFIX$GNUSTEP_LOCAL_LIBRARIES" | sed "s/@libdir@/$LIBDIR/g")
 GNUSTEP_LOCAL_DOC="$GNUSTEP_PREFIX$GNUSTEP_LOCAL_DOC"
 GNUSTEP_LOCAL_DOC_MAN="$GNUSTEP_PREFIX$GNUSTEP_LOCAL_DOC_MAN"
 GNUSTEP_LOCAL_DOC_INFO="$GNUSTEP_PREFIX$GNUSTEP_LOCAL_DOC_INFO"
@@ -1137,7 +1132,7 @@ fi
 
 
 GS_CHECK_OBJC_RUNTIME()
-
+GS_BLOCKS_SUPPORT()
 #--------------------------------------------------------------------
 # Check if libobjc was compiled with thread support.
 #--------------------------------------------------------------------
@@ -1289,7 +1284,7 @@ if test x"$USE_ARC" = x"yes"; then
   # What we want to do: set USE_ARC to yes if we can compile
   # something with -fobjc-arc.
   CFLAGS_no_arc="$CFLAGS"
-  CFLAGS="$CFLAGS -fobjc-runtime=gnustep-1.8 -fobjc-arc"
+  CFLAGS="$CFLAGS -fobjc-runtime=gnustep-2.2 -fobjc-arc"
   AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
 /* Note that we never execute this code so it does not really matter
    what it is.  We are testing that the compiler accepts the
@@ -1371,7 +1366,7 @@ GS_CHECK_GCC_VERSION()
 
 GS_RUNTIME_ABI()
 # If we determined that the user wants the gnustep-2.0 ABI, check for potential linker problems.
-if test $gs_cv_runtime_abi = 'gnustep-2.0'; then
+if test "$gs_cv_runtime_abi" = "gnustep-2.0"; then
   GS_CHECK_ABI20_LINKER()
 fi
 # Do not restore LIBS and CFLAGS yet as we need to test if the
@@ -1769,14 +1764,53 @@ AC_CHECK_PROGS(LATEX2HTML, latex2html)
 #--------------------------------------------------------------------
 # For test framework
 #--------------------------------------------------------------------
-AC_PATH_PROG(SHELLPROG, bash)
 AC_PATH_PROG(TESTPROG, test)
+
+AC_ARG_WITH(bash-path,[
+--with-bash-path=PATH
+   Set the path to the bash executable to use.  This is useful on systems
+   which do not have a reasonably recent version of bash in their path.
+   Example: --with-bash-path=/opt/homebrew/bin/bash
+],
+  SHELLPROG="$withval",SHELLPROG=)
+if test x"$SHELLPROG" = x""; then
+  AC_PATH_PROG(SHELLPROG, bash)
+else
+  if test ! -x $SHELLPROG
+  then
+    echo "Unable to find executable bash program at $SHELLPROG."
+    SHELLPROG=
+  fi
+fi
 if test x"$SHELLPROG" = x""; then
   echo "Unable to find the bash program (needed for testsuite)."
   SHELLPROG=/bin/sh
   MISSINGBASH=YES
 else
   MISSINGBASH=NO
+  BVER=`$SHELLPROG -c 'echo $BASH_VERSION'`
+  BMAJ=`echo $BVER | sed -e 's/\..*//'`
+  BMIN=`echo $BVER | sed -e 's/^[[0-9]][[0-9]]*\.\([[0-9]][[0-9]]*\).*/\1/'`
+  if test ${BMAJ} -lt 4
+  then
+    MISSINGBASH=YES
+  else
+    if test ${BMAJ} -eq 4 -a ${BMIN} -lt 3
+    then
+      MISSINGBASH=YES
+    fi
+  fi
+  if test ${MISSINGBASH} = "YES"
+  then
+    echo "The bash progrem version is too old (needed for testsuite)."
+    SHELLPROG=/bin/sh
+  fi
+fi
+if test ${MISSINGBASH} = "YES"
+then
+  echo "Please configure using --with-bash-path= to specify a modernish"
+  echo "bash program (version 4.3 or later)."
+  SHELLPROG=/bin/sh
 fi
 AC_SUBST(MISSINGBASH)
 
@@ -1792,6 +1826,6 @@ gnustep-make.spec gnustep-config TestFramework/gnustep-tests
 filesystem.make filesystem.sh filesystem.csh gnustep-make-ld.so.conf])
 AC_CONFIG_FILES([runtime/$OBJC_RUNTIME_LIB.make:config.make.in])
 AC_CONFIG_COMMANDS([default],
-	[[chmod a+x openapp opentool fixpath.sh executable.template]],
+	[[chmod a+x openapp opentool fixpath.sh executable.template TestFramework/gnustep-tests]],
 	[[]])
 AC_OUTPUT

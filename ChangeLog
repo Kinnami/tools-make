@@ -1,3 +1,72 @@
+2025-11-19  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Instance/Documentation/autogsdoc.make:
+	Add variable xxx_AGSDOC_INSTALL_BUNDLE to allow the name (within the
+	install directory) of a folder in which the autogsdoc generated files
+	are stored.  This allows make files to override the default, which is
+	the name of the project/instance.
+	For instance, the gnustep-base library defines
+	Base_DOC_INSTALL_DIR=Developer/Base and
+	Base_AGSDOC_INSTALL_BUNDLE=Reference to have the library reference
+	documentation installed in Developer/Base/Reference
+
+2025-11-18  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Instance/Documentation/autogsdoc.make:
+	* Instance/documentation.make:
+	Add AGSDOC_RELOCATABLE=yes environment variable or make setting to
+	tell autogsdoc to generate relocatable html output for web servers
+	etc.  The cross references in this documentation will work when the
+	documentation is installed, but not until it is installed.
+	When generating documentation using autogsdoc, make xxx_DOC_INSTALL_DIR
+	default to Developer (since documentation genmerated from source code
+  	is almost certainly developer documentation).  For direct installation
+	to the top level documentation directory, set xxx_DOC_INSTALL_DIR=. to
+	override the new default.
+
+2025-01-10  Richard Frith-Macdonald <rfm@gnu.org>
+
+        * ANNOUNCE:
+	* NEWS:
+	* RELEASENOTES:
+	* Documentation/news.texi:
+	* Documentation/releasenotes.texi:
+	Update announcement and release notes for 2.9.3.
+	* Version: Bump version to 2.9.3.
+
+2024-11-20  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* common.make: when building with the address/leak sanitizer
+	(-asan=yes on command line or GNUSTEP_WITH_ASAN=1 in the environment)
+	we add -DGNUSTEP_WITH_ASAN=1 for the preprocessor so that compiled
+	code can take this into account.
+
+2024-08-20  Wolfgang Lux  <wolfgang.lux@gmail.com>
+
+	* TestFramework/gnustep-tests.in: Only return plain files when
+	looking for test cases.
+
+2024-07-31  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* TestFramework/gnustep-tests.in: Fix 'Failed build' detection in
+	Summary.sh by recording build failures in tests.sum and test.log
+
+2024-05-31  Yavor Doganov  <yavor@gnu.org>
+
+	* GNUmakefile.in (install): Remove $(srcdir) from GNUstep-reset.sh
+	since it is now a generated file.  Fixes out-of-tree builds where
+	builddir != srcdir.
+
+2024-05-26  Richard Frith-Macdonald <rfm@gnu.org>
+
+        * ANNOUNCE:
+	* NEWS:
+	* RELEASENOTES:
+	* Documentation/news.texi:
+	* Documentation/releasenotes.texi:
+	Update announcement and release notes for 2.9.2.
+	* Version: Bump version to 2.9.2.
+
 2024-02-14  Richard Frith-Macdonald <rfm@gnu.org>
 
 	* common.make:

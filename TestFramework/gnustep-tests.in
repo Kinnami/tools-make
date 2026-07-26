@@ -49,14 +49,25 @@ if test -z "$GNUSTEP_MAKEFILES"; then
   fi
 fi
 
+GREP=@GREP@
+export GREP
 GSTESTTOP="$GNUSTEP_MAKEFILES/TestFramework"
 export GSTESTTOP
 GSTESTDIR=`pwd`
 export GSTESTDIR
 
-GSTESTMODE=normal
-
-GSMAKEOPTIONS="debug=yes"
+if test x"$GSTESTMODE" = x
+then
+  GSTESTMODE=normal
+fi
+if test x"$GSTESTTIMEOUT" = x
+then
+  GSTESTTIMEOUT="300"
+fi
+if test x"$GSMAKEOPTIONS" = x
+then
+  GSMAKEOPTIONS="debug=yes"
+fi
 GSVERBOSECFLAG=
 
 # Argument checking
@@ -64,8 +75,16 @@ while test $# != 0
 do
   gs_option=
   case $1 in
+    --asan)
+      GNUSTEP_WITH_ASAN=1
+      export GNUSTEP_WITH_ASAN
+      ;;
     --clean)
       GSTESTMODE=clean
+      ;;
+    --timeout)
+      GSTESTTIMEOUT=$2
+      shift
       ;;
     --debug)
       GSTESTDBG="$GSTESTDIR/gdb.cmds"
@@ -111,7 +130,9 @@ do
       echo "Runs the specified tests, or any in subdirectories of the"
       echo "current directory if no arguments are given."
       echo "Use 'gnustep-tests --documentation' for full details."
+      echo "Use 'gnustep-tests --asan' to build using GNUSTEP_WITH_ASAN=1 set."
       echo "Use 'gnustep-tests --clean' to remove old logs and leftover files."
+      echo "Use 'gnustep-tests --timeout <VAL>' to change the default timeout ($GSTESTTIMEOUT)."
       echo "Use 'gnustep-tests --failfast' to stop after the first failure."
       echo "Use 'gnustep-tests --debug' to run gdb/lldb for any failed tests."
       echo "Use 'gnustep-tests --make-debug' to enable make debug output."
@@ -143,6 +164,28 @@ GSTESTLOG=$GSTESTDIR/tests.log
 export GSTESTLOG
 GSTESTSUM=$GSTESTDIR/tests.sum
 export GSTESTSUM
+
+if test x"$GNUSTEP_WITH_ASAN" = x1
+then
+  # When testing with address sanitizer (and leak sanitizer) we normally
+  # want the option to have memory leaks be signalled by the test ending
+  # with a well known exit code.
+  if test x"$LSAN_OPTIONS" = x
+  then
+    LSAN_OPTIONS=exitcode=23,suppressions=$GNUSTEP_MAKEFILES/lsan-suppressions
+    export LSAN_OPTIONS
+  fi
+  if test x"$ASAN_OPTIONS" = x
+  then
+    # fast_unwind_on_malloc=0 turns off a performance optimisation in favour
+    # of more reliable stack traces.
+    ASAN_OPTIONS=fast_unwind_on_malloc=0:exitcode=24
+    export ASAN_OPTIONS
+  fi
+else
+  GNUSTEP_WITH_ASAN=0
+fi
+export GNUSTEP_WITH_ASAN
 
 # We assume that the C compiler supports ObjC
 if test x"$CC" = x
@@ -255,10 +298,10 @@ else
   NONAME=no
 fi
 
-TEMP=`echo *`
+# Check for all possible test directories in the current directory.
 TESTS=
 TESTDIRS=
-for file in $TEMP
+for file in `echo *`
 do
   if test -d $file -a $file != CVS -a $file != obj
   then
@@ -307,7 +350,7 @@ extract()
   shift
   while test $# != 0
   do
-    grep -a "$1" "$f"
+    $GREP -a "$1" "$f"
     shift
   done
 }
@@ -325,7 +368,7 @@ present()
   shift
   while test $# != 0
   do
-    grep -a "$1" "$f" >/dev/null
+    $GREP -a "$1" "$f" >/dev/null
     if test $? = "0"
     then
       return 0
@@ -399,13 +442,39 @@ build_test ()
   if test $? != 0
   then
     rm -f ./obj/$TESTNAME
-    echo "Failed build:     $1" >&2
+    echo "Failed build:     $1" | tee -a $GSTESTSUM >> $GSTESTLOG
     if test "$GSTESTMODE" = "failfast"
     then
       return 1
     fi
   fi
   return 0
+}
+
+# Function to run a test case with a timeout by starting it in the background
+# and having a subshell monitor it and kill it if it runs too long.
+# If the test completes before the timeout, the waiting subshell is killed.
+# The result of the function is the exit status of the test case.
+# To avoid dependency on the external command 'sleep' we use coproc with
+# 'read -t' and 'wait' to implement a sleep for $timeout seconds.
+with_timeout()
+{ 
+  timeout="$1"; cmd="$2";
+
+  ( 
+    eval "$cmd" &
+    child=$!
+    trap -- "" SIGTERM 
+    (       
+      coproc read -t $timeout && wait "$!" || true
+      kill $child 2> /dev/null 
+    ) &     
+    waiter=$!
+    wait $child
+    result=$?
+    { kill -9 $waiter && wait $waiter; } 2>/dev/null
+    (exit $result)
+  )
 }
 
 run_test ()
@@ -421,17 +490,24 @@ run_test ()
 
   if test -x $RUN_CMD
   then
-    # We want aggressive memory checking.
 
-    # Tell glibc to check for malloc errors, and to crash if it detects
-    # any.
+    # Tell glibc to check for malloc errors, and to crash if it detects any.
     MALLOC_CHECK_=2
     export MALLOC_CHECK_
 
-    # Tell GNUstep-base to check for messages sent to deallocated objects
-    # and crash if it happens.
-    NSZombieEnabled=YES
-    CRASH_ON_ZOMBIE=YES
+    if test x"$GNUSTEP_WITH_ASAN" = x1
+    then
+      # With ASAN/LSAN keeping objects in existence as zombies may give us
+      # false negatives when looking for leaks.
+      # When running without ASAN leak checking we want basic memory checking.
+      NSZombieEnabled=NO
+      CRASH_ON_ZOMBIE=NO
+    else
+      # Tell GNUstep-base to check for messages sent to deallocated objects
+      # and crash if it happens.
+      NSZombieEnabled=YES
+      CRASH_ON_ZOMBIE=YES
+    fi
     export NSZombieEnabled CRASH_ON_ZOMBIE
 
     echo Running $dir/$TESTFILE...
@@ -441,31 +517,46 @@ run_test ()
     # Env.sh is deprecated ... we should only use TestInfo to setup for a test
     if test -r ./Env.sh
     then
-      ( . ./Env.sh; $RUN_CMD )
+      ( . ./Env.sh; time with_timeout $GSTESTTIMEOUT $RUN_CMD )
     else
       if test -r ./make-check.env
       then
-        ( . ./make-check.env; . ./TestInfo > /dev/null 2>&1; $RUN_CMD )
+        ( . ./make-check.env; . ./TestInfo > /dev/null 2>&1; time with_timeout $GSTESTTIMEOUT $RUN_CMD )
       else
-        ( . ./TestInfo > /dev/null 2>&1; $RUN_CMD )
+        ( . ./TestInfo > /dev/null 2>&1; time with_timeout $GSTESTTIMEOUT $RUN_CMD )
       fi
     fi
 
     result=$?
-    if test $result != 0
-    then
-      if test -r $TESTFILE.abort
-      then
+    if test $result -eq 0; then
+      echo "Completed file:  $TESTFILE" >&2
+    elif test $result -eq 23; then
+      # https://github.com/google/sanitizers/wiki/AddressSanitizerLeakSanitizer
+      echo "Failed file:  $TESTFILE leaked memory detected by LSAN!" >&2
+      if test "$GSTESTMODE" = "failfast"; then
+	return 1
+      fi
+    elif test $result -eq 24; then
+      # https://github.com/google/sanitizers/wiki/AddressSanitizerLeakSanitizer
+      echo "Failed file:  $TESTFILE memory error detected by ASAN!" >&2
+      if test "$GSTESTMODE" = "failfast"; then
+	return 1
+      fi
+    elif test $result -eq 124; then
+      now=`date`
+      echo "Failed file:  $TESTFILE timed out at $now!" >&2
+      if test "$GSTESTMODE" = "failfast"; then
+	return 1
+      fi
+    else
+      if test -r $TESTFILE.abort; then
 	echo "Completed file:  $TESTFILE" >&2
       else
-	echo "Failed file:     $TESTFILE aborted without running all tests!" >&2
-	if test "$GSTESTMODE" = "failfast"
-	then
+	echo "Failed file:  $TESTFILE aborted without running all tests!" >&2
+	if test "$GSTESTMODE" = "failfast"; then
 	  return 1
 	fi
       fi
-    else
-      echo "Completed file:  $TESTFILE" >&2
     fi
   else
     echo "Skipped (not built) file:  $TESTFILE" >&2
@@ -537,7 +628,7 @@ proc_test_log ()
     EXT=`gnustep-config --variable=EXEEXT`
     if present "$GSTESTSUM.tmp" "^Failed test:"
     then
-      grep -a '^Failed test:' "$GSTESTLOG.tmp" | sed -e 's/^Failed test:[^:]*:\([0-9][0-9]*\).*/break testStart if testLineNumber==\1/' > "$GSTESTDBG"
+      $GREP -a '^Failed test:' "$GSTESTLOG.tmp" | sed -e 's/^Failed test:[^:]*:\([0-9][0-9]*\).*/break testStart if testLineNumber==\1/' > "$GSTESTDBG"
       $DEBUGGER "./obj/$TESTNAME"$EXT -x "$GSTESTDBG"
       rm -f "$GSTESTDBG"
     elif present "$GSTESTSUM.tmp" "^Failed file:"
@@ -571,10 +662,10 @@ do
     if test x"$OBJCXX" = x
     then
       # Only Objective-C (and C)
-      SRCDIRS=`find $TESTDIR -name "*.m" -o -name "*.c" | sed -e 's;/[^/]*$;;' | sort -u | sed -e 's/\(^\| \)X[^ ]*//g'`
+      SRCDIRS=`find $TESTDIR -type f \( -name "*.m" -o -name "*.c" \) | sed -e 's;/[^/]*$;;' | sort -u | sed -e 's/\(^\| \)X[^ ]*//g'`
     else
       # Objective-C and Objective-C++ (implicitly C and C++ too)
-      SRCDIRS=`find $TESTDIR \( -name "*.m" -o -name "*.mm" -o -name "*.c" -o -name "*.cc" \) | sed -e 's;/[^/]*$;;' | sort -u | sed -e 's/\(^\| \)X[^ ]*//g'`
+      SRCDIRS=`find $TESTDIR -type f \( -name "*.m" -o -name "*.mm" -o -name "*.c" -o -name "*.cc" \) | sed -e 's;/[^/]*$;;' | sort -u | sed -e 's/\(^\| \)X[^ ]*//g'`
     fi
   else
     SRCDIRS="$TESTDIRS"
@@ -643,10 +734,10 @@ do
         if test x"$OBJCXX" = x
         then
           # Only Objective-C (and C)
-          TESTS=`find . \( -name . -o -prune \) \( -name "*.m" -o -name "*.c" \) | sed -e 's;^.*/;;' | sort -u | sed -e 's/\(^\| \)X[^ ]*//g'`
+          TESTS=`find . \( -name . -o -prune \) -type f \( -name "*.m" -o -name "*.c" \) | sed -e 's;^.*/;;' | sort -u | sed -e 's/\(^\| \)X[^ ]*//g'`
         else
           # Objective-C and Objective-C++ (implicitly C and C++ too)
-          TESTS=`find . \( -name . -o -prune \) \( -name "*.m" -o -name "*.mm" -name "*.c" -o -name "*.cc" \) | sed -e 's;^.*/;;' | sort -u | sed -e 's/\(^\| \)X[^ ]*//g'`
+          TESTS=`find . \( -name . -o -prune \) -type f \( -name "*.m" -o -name "*.mm" -name "*.c" -o -name "*.cc" \) | sed -e 's;^.*/;;' | sort -u | sed -e 's/\(^\| \)X[^ ]*//g'`
         fi
       fi
 

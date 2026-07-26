@@ -25,13 +25,7 @@
 #include <stdarg.h>
 #include <string.h>
 
-#import <Foundation/NSAutoreleasePool.h>
-#import <Foundation/NSCalendarDate.h>
-#import <Foundation/NSException.h>
-#import <Foundation/NSObjCRuntime.h>
-#import <Foundation/NSObject.h>
-#import <Foundation/NSRegularExpression.h>
-#import <Foundation/NSString.h>
+#import <Foundation/Foundation.h>
 
 #if defined(__OBJC__) && defined(__clang__) && defined(_MSC_VER)
 /* Work around Clang bug on Windows MSVC when tests contain no
@@ -97,7 +91,9 @@ static inline void testIndent(void)
 
 /* A variable set whenever a test macro is executed.  This contains
  * the exception which terminated the test macro, or nil if no exception
- * was raised.
+ * was raised.  This is destroyed at the end of a set (to avoid leaking)
+ * but if you run tests outside sets you should explicitly destroy it
+ * when finished.
  */
 static NSException *testRaised __attribute__((unused)) = nil;
 
@@ -156,10 +152,12 @@ static void pass(int passed, const char *format, ...)
 
   if (testTimestamps)
     {
-      NSCalendarDate    *d = [NSCalendarDate date];
-
-      [d setCalendarFormat: @"(%Y-%m-%d %H:%M:%S.%F %z) "];
-      ts = [[d description] cString];
+      NSDateFormatter	*f = [[NSDateFormatter alloc] init];
+      [f setLocale: [NSLocale localeWithLocaleIdentifier: @"en_US_POSIX"]];
+      [f setDateFormat: @"(yyyy-MM-dd HH:mm:ss.SSS z) "];
+      [f setTimeZone: [NSTimeZone systemTimeZone]];
+      ts = [[f stringFromDate: [NSDate date]] UTF8String];
+      [f release];
     }
   if (passed)
     {
@@ -286,22 +284,23 @@ static void testStart()
       if (0 == _cond) \
 	{ \
           NSString  *s = [_obj description]; \
+          NSString  *e = [_exp description]; \
           if ([s length] == 1) \
             { \
               fprintf(stderr, \
-		"Expected '%s' and got '%s' (unicode codepoint %d)\n", \
-                [[_exp description] UTF8String], [s UTF8String], \
-		[s characterAtIndex: 0]); \
+		"Expected '%s' and got '%s' (unicode codepoint %u)\n", \
+                [e UTF8String], [s UTF8String], \
+		(unsigned)[s characterAtIndex: 0]); \
             } \
 	  else if (nil == s) \
 	    { \
 	      fprintf(stderr, "Expected '%s' and got (nil)\n", \
-                [[_exp description] UTF8String]); \
+                [e UTF8String]); \
 	    } \
 	  else \
 	    { \
 	      fprintf(stderr, "Expected '%s' and got '%s'\n", \
-                [[_exp description] UTF8String], [s UTF8String]); \
+                [e UTF8String], [s UTF8String]); \
 	    } \
 	} \
     } \
@@ -357,9 +356,9 @@ static void testStart()
           if ([_dsc length] == 1) \
             { \
               fprintf(stderr, \
-		"Expected '%s' and got '%s' (unicode codepoint %d)\n", \
+		"Expected '%s' and got '%s' (unicode codepoint %u)\n", \
                 [[_pat description] UTF8String], [_dsc UTF8String], \
-		[_dsc characterAtIndex: 0]); \
+		(unsigned)[_dsc characterAtIndex: 0]); \
             } \
 	  else if (nil == _dsc) \
 	    { \
@@ -556,6 +555,7 @@ static void testStart()
     fprintf(stderr, "%s:%d ... %s\n", __FILE__, __LINE__, _save_set); \
     free(_save_set); \
     testHopeful = _save_hopeful; \
+    DESTROY(testRaised); \
   }
 
 /* The NEED macro takes a test macro as an argument and breaks out of a set
@@ -666,5 +666,7 @@ if (__value != __object) \
 #define RECREATE_AUTORELEASE_POOL(X)  \
   if (X == nil) \
     (X) = [NSAutoreleasePool new]
+#define ENTER_POOL	@autoreleasepool{
+#define LEAVE_POOL      } 
 #endif
 

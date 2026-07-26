@@ -216,7 +216,8 @@ install: generated-files
 	  $(INSTALL_DATA) GNUstep.csh "$(makedir)"; \
 	  $(INSTALL_DATA) filesystem.sh "$(makedir)"; \
 	  $(INSTALL_DATA) filesystem.csh "$(makedir)"; \
-	  $(INSTALL_DATA) "$(srcdir)/GNUstep-reset.sh" "$(makedir)"; \
+	  $(INSTALL_DATA) GNUstep-reset.sh "$(makedir)"; \
+	  $(INSTALL_DATA) lsan-suppressions "$(makedir)"; \
 	  $(INSTALL_PROGRAM) -m 755 fixpath.sh "$(makedir)"; \
 	  $(INSTALL_PROGRAM) -m 755 openapp "$(tooldir)"; \
 	  $(INSTALL_PROGRAM) -m 755 "$(srcdir)/debugapp" "$(tooldir)"; \
@@ -334,6 +335,7 @@ uninstall:
 	rm -f "$(makedir)/bake_debian_files.sh"
 	rm -f "$(makedir)/config-noarch.make"
 	rm -f "$(makedir)/filesystem.make"
+	rm -f "$(makedir)/lsan-suppressions"
 	rm -f "$(makedir)/$(MAKE_CONFIG_DIR)/config.make"
 	rm -f "$(GNUSTEP_CONFIG_FILE)"
 	-rmdir "$(GNUSTEP_CONFIG_FILE_DIR)"
@@ -510,7 +512,7 @@ debian_dist/gnustep-make_$(DEB_TARBALL_VERSION)_any.deb:
 	cd debian_dist/gnustep-make-$(DEB_TARBALL_VERSION)/ && debuild $(DEBUILD_ARGS) -b
 
 debfiles: debian_dist/gnustep-make_$(DEB_TARBALL_VERSION).orig.tar.gz
-	cd debian_dist && tar xfz gnustep-make_$(DEB_TARBALL_VERSION).orig.tar.gz
+	cd debian_dist && tar -xfz gnustep-make_$(DEB_TARBALL_VERSION).orig.tar.gz
 	PACKAGE_NAME="gnustep-make" VERSION=$(DEB_TARBALL_VERSION) DEB_MAINTAINER="GNUstep Developers <gnustep-dev@gnu.org>" DEB_ARCHITECTURE=any /bin/bash bake_debian_files.sh debian_dist/gnustep-make-$(DEB_TARBALL_VERSION)/
 
 # Manual export is required to permit user to override .orig.tar.gz during the build process.

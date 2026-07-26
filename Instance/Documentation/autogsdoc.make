@@ -27,35 +27,128 @@ ifeq ($(AUTOGSDOC),)
   AUTOGSDOC = autogsdoc
 endif
 
+ifeq ($(PACKAGE_VERSION),)
+  PACKAGE_VERSION = $(VERSION)
+  # Use a default of 0.0.1 if nothing better is provided.
+  ifeq ($(PACKAGE_VERSION),)
+    PACKAGE_VERSION = 0.0.1
+  endif
+endif
+
+INTERNAL_AGSDOCFLAGS = \
+	-Project $(GNUSTEP_INSTANCE) \
+	-Version $(PACKAGE_VERSION) \
+
 AGSDOC_FLAGS = $($(GNUSTEP_INSTANCE)_AGSDOC_FLAGS)
 
-INTERNAL_AGSDOCFLAGS = -Project $(GNUSTEP_INSTANCE)
-INTERNAL_AGSDOCFLAGS += -DocumentationDirectory $(GNUSTEP_INSTANCE)
 INTERNAL_AGSDOCFLAGS += $(AGSDOC_FLAGS)
 
-internal-doc-all_:: $(GNUSTEP_INSTANCE)/dependencies
+# The autogsdoc output location may be specified with AGSDOC_LOCAL_DIR
+# If unspecified, this defaults to using the project name (GNUSTEP_INSTANCE).
+AGSDOC_LOCAL_DIR = $($(GNUSTEP_INSTANCE)_AGSDOC_LOCAL_DIR)
+ifeq ($(AGSDOC_LOCAL_DIR),)
+AGSDOC_LOCAL_DIR = $(GNUSTEP_INSTANCE)
+endif
+INTERNAL_AGSDOCFLAGS += -DocumentationDirectory "$(AGSDOC_LOCAL_DIR)"
+
+# If there was no installation subdirectory use Developer by default.
+# The make file can specify xxx_DOC_INSTALL_DIR=. to use the top level
+# documentation directory by default.
+ifeq ($(DOC_INSTALL_DIR),)
+DOC_INSTALL_DIR = Developer
+endif
+
+# The autogsdoc output bundle is a directory within AGSDOC_INSTALL_DIR
+# If unspecified, thes defaults to using the project name (GNUSTEP_INSTANCE).
+AGSDOC_INSTALL_BUNDLE = $($(GNUSTEP_INSTANCE)_AGSDOC_INSTALL_BUNDLE)
+ifeq ($(AGSDOC_INSTALL_BUNDLE),)
+AGSDOC_INSTALL_BUNDLE = $(GNUSTEP_INSTANCE)
+endif
+AGSDOC_INSTALL_DIR = $(DOC_INSTALL_DIR)/$(AGSDOC_INSTALL_BUNDLE)
+
+INTERNAL_AGSDOCFLAGS += \
+	-InstallationDomain "$(GNUSTEP_INSTALLATION_DOMAIN)" \
+	-InstallDir "$(AGSDOC_INSTALL_DIR)" \
+	-MakeDependencies YES
+
+ifeq ($(AGSDOC_RELOCATABLE), yes)
+INTERNAL_AGSDOCFLAGS += -RelocatableHtml YES
+endif
+
+# When indexing, we turn off HTML generation (which requires us to turn off
+# the dependency on html output being generated).
+ifeq ($(AGSDOC_INDEXING),yes)
+INTERNAL_AGSDOCFLAGS += -GenerateHtml NO
+internal-doc-all_:: \
+	$(AGSDOC_LOCAL_DIR)/stamp
+else
+INTERNAL_AGSDOCFLAGS += -GenerateHtml YES
+internal-doc-all_:: \
+	$(AGSDOC_LOCAL_DIR)/stamp \
+	$(AGSDOC_LOCAL_DIR)/stamp_html
+endif
 
 # Only include (and implicitly automatically rebuild if needed) the
 # dependencies file when we are compiling.  Ignore it when cleaning or
 # installing.
+did_have_dependencies=no
+ifneq ("$(wildcard $(AGSDOC_LOCAL_DIR)/dependencies)","")
+  did_have_dependencies=yes
+endif
+did_have_dependencies_html=no
+ifneq ("$(wildcard $(AGSDOC_LOCAL_DIR)/dependencies_html)","")
+  did_have_dependencies_html=yes
+endif
 ifeq ($(GNUSTEP_OPERATION), all)
--include $(GNUSTEP_INSTANCE)/dependencies
+  ifeq ($(did_have_dependencies),yes)
+    include $(AGSDOC_LOCAL_DIR)/dependencies
+  endif
+  ifneq ($(AGSDOC_INDEXING),yes)
+    ifeq ($(did_have_dependencies_html),yes)
+      include $(AGSDOC_LOCAL_DIR)/dependencies_html
+    endif
+  endif
 endif
 
-$(GNUSTEP_INSTANCE)/dependencies:
-	$(ECHO_AUTOGSDOC)$(AUTOGSDOC) $(INTERNAL_AGSDOCFLAGS) -MakeDependencies $(GNUSTEP_INSTANCE)/dependencies $(AGSDOC_FILES)$(END_ECHO)
+# The following rules to rebuild the project and the stamp files are mostly
+# redundant because the dependencies and dependencies_html files generated
+# by autogsdoc include more specific rules to do the same thing.
+# However, first time round on a clean/empty project those dependency files
+# don't exist, so we can't remove the rules here.
+# NB. The '&:' operation requires version 4.3 of GNU Make or later.
+ifeq ($(AGSDOC_INDEXING),yes)
+  ifeq ($(did_have_dependencies),no)
+$(AGSDOC_LOCAL_DIR)/stamp :
+	$(ECHO_AUTOGSDOC)$(AUTOGSDOC) $(INTERNAL_AGSDOCFLAGS) $(AGSDOC_FILES)$(END_ECHO)
+  endif
+else
+  ifeq ($(did_have_dependencies),no)
+$(AGSDOC_LOCAL_DIR)/stamp \
+$(AGSDOC_LOCAL_DIR)/stamp_html &:
+	$(ECHO_AUTOGSDOC)$(AUTOGSDOC) $(INTERNAL_AGSDOCFLAGS) $(AGSDOC_FILES)$(END_ECHO)
+  else
+    ifeq ($(did_have_dependencies_html),no)
+$(AGSDOC_LOCAL_DIR)/stamp \
+$(AGSDOC_LOCAL_DIR)/stamp_html &:
+	$(ECHO_AUTOGSDOC)$(AUTOGSDOC) $(INTERNAL_AGSDOCFLAGS) $(AGSDOC_FILES)$(END_ECHO)
+    endif
+  endif
+endif
 
 internal-doc-install_:: 
-	$(ECHO_INSTALLING)rm -rf $(GNUSTEP_DOC)/$(DOC_INSTALL_DIR)/$(GNUSTEP_INSTANCE); \
-	$(TAR) cfX - $(GNUSTEP_MAKEFILES)/tar-exclude-list $(GNUSTEP_INSTANCE) | \
-	  (cd $(GNUSTEP_DOC)/$(DOC_INSTALL_DIR); $(TAR) xf -)$(END_ECHO)
+	$(ECHO_INSTALLING)rm -rf $(GNUSTEP_DOC)/$(AGSDOC_INSTALL_DIR); \
+	$(MKDIRS) $(GNUSTEP_DOC)/$(AGSDOC_INSTALL_DIR); \
+	(cd $(AGSDOC_LOCAL_DIR); $(TAR) cf - -X \
+	$(GNUSTEP_MAKEFILES)/tar-exclude-list \
+	* | (cd $(GNUSTEP_DOC)/$(AGSDOC_INSTALL_DIR); \
+	$(TAR) xf -))$(END_ECHO)
 ifneq ($(CHOWN_TO),)
 	$(ECHO_CHOWNING)$(CHOWN) -R $(CHOWN_TO) \
-	      $(GNUSTEP_DOC)/$(DOC_INSTALL_DIR)/$(GNUSTEP_INSTANCE)$(END_ECHO)
+	      $(GNUSTEP_DOC)/$(AGSDOC_INSTALL_DIR)$(END_ECHO)
 endif
 
 internal-doc-uninstall_:: 
-	-$(ECHO_UNINSTALLING)rm -f $(GNUSTEP_DOC)/$(DOC_INSTALL_DIR)/$(GNUSTEP_INSTANCE)$(END_ECHO)
+	-$(ECHO_UNINSTALLING)rm -rf $(GNUSTEP_DOC)/$(AGSDOC_INSTALL_DIR)$(END_ECHO)
 
 internal-doc-clean::
 	-$(ECHO_NOTHING)rm -Rf $(GNUSTEP_INSTANCE)$(END_ECHO)

@@ -43,6 +43,10 @@ endif
 # The GSDoc files that needs pre-processing are in xxx_GSDOC_FILES
 # The files for processing by autogsdoc are in xxx_AGSDOC_FILES
 # The options for controlling autogsdoc are in xxx_AGSDOC_FLAGS
+# The AGSDOC_RELOCATABLE=yes option may be defined (usually as an environment
+#   variable) to generate html documents with inter-project references which
+#   are relative to the installation location, so the installed documentation
+#   may be copied without breaking links.
 #
 # Javadoc support: 
 # The Java classes and packages that needs documenting using javadoc
@@ -62,6 +66,15 @@ endif
 #   non java)
 #
 #	Where xxx is the name of the document
+#
+# xxx_DOC_INSTALL_DIR defaults to Developer, so documentation is usually
+# installed to the Developer subdirectory (for user documentation you should
+# use 'User').  To install directly to the documentation directory rather
+# than a subdirectory, set xxx_DOC_INSTALL_DIR=.
+#
+# Documentation generated from source code by autogsdoc is installed in a
+# subdirectory of xxx_DOC_INSTALL_DIR called xxx_AGSDOC_INSTALL_BUNDLE,
+# whose value defaults to $(GNUSTEP_INSTANCE).
 #
 
 TEXI_FILES = $($(GNUSTEP_INSTANCE)_TEXI_FILES)
