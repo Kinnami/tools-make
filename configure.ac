@@ -70,6 +70,9 @@ else
   defaultng=no;
 fi
 
+# Require gnu11
+#CFLAGS="$CFLAGS -std=gnu11"
+
 AC_PROG_CC
 AC_PROG_CPP
 
@@ -241,6 +244,35 @@ fi
 # GNU C compiler and therefore set CFLAGS to just "-g", so we fix it.
 if test "$target_os" = windows -a x"${GCC}" != x"yes" -a x"$gs_cv_cc_is_clang" = x"yes"; then
   CFLAGS="-g -O2"
+fi
+
+
+#--------------------------------------------------------------------
+# Is the compiler recent enough
+#--------------------------------------------------------------------
+if test x"${GCC}" = x"yes" -a x"$gs_cv_cc_is_clang" = x"no"; then
+AC_ARG_ENABLE([gcc-version-check],
+    [AS_HELP_STRING([--disable-gcc-version-check],
+                    [don't check that the GCC version is supported by GNUstep.  Currently GNUstep supports GCC 4.9.4 or later, but this option allows you to use an older compiler.  If you do that you will probably have to make source code changes to allow the older compiler to worl.  In general GNUstep maintainers will accept such changes as patches, but will not commit to checking that they continue to work in future releases (maintenance of such code for unsupported compiler versions are your responsibility).])],
+    [],
+    [enable_gcc_version_check=yes])
+
+AS_IF([test "x$enable_gcc_version_check" = "xyes"], [
+    AS_IF([test "x$GCC" = "xyes"], [
+        AC_COMPILE_IFELSE(
+            [AC_LANG_PROGRAM([[
+#if (__GNUC__ < 4) || \
+    (__GNUC__ == 4 && __GNUC_MINOR__ < 9) || \
+    (__GNUC__ == 4 && __GNUC_MINOR__ == 9 && __GNUC_PATCHLEVEL__ < 4)
+#error GCC 4.9.4 or later is required
+#endif
+            ]], [[]])],
+            [AC_MSG_NOTICE([GCC 4.9.4 or later detected])],
+            [AC_MSG_ERROR([GCC 4.9.4 or later is required])]
+        )
+    ])
+])
+
 fi
 
 AC_PROG_INSTALL
@@ -512,6 +544,7 @@ GNUSTEP_SYSTEM_ADMIN_TOOLS="$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_ADMIN_TOOLS"
 GNUSTEP_SYSTEM_LIBRARY=$(echo "$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_LIBRARY" | sed "s/@libdir@/$LIBDIR/g")
 GNUSTEP_SYSTEM_HEADERS="$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_HEADERS"
 GNUSTEP_SYSTEM_LIBRARIES=$(echo "$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_LIBRARIES" | sed "s/@libdir@/$LIBDIR/g")
+GNUSTEP_SYSTEM_RESOURCES=$(echo "$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_RESOURCES" | sed "s/@libdir@/$LIBDIR/g")
 GNUSTEP_SYSTEM_DOC="$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_DOC"
 GNUSTEP_SYSTEM_DOC_MAN="$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_DOC_MAN"
 GNUSTEP_SYSTEM_DOC_INFO="$GNUSTEP_PREFIX$GNUSTEP_SYSTEM_DOC_INFO"
@@ -524,6 +557,7 @@ GNUSTEP_NETWORK_ADMIN_TOOLS="$GNUSTEP_PREFIX$GNUSTEP_NETWORK_ADMIN_TOOLS"
 GNUSTEP_NETWORK_LIBRARY=$(echo "$GNUSTEP_PREFIX$GNUSTEP_NETWORK_LIBRARY" | sed "s/@libdir@/$LIBDIR/g")
 GNUSTEP_NETWORK_HEADERS="$GNUSTEP_PREFIX$GNUSTEP_NETWORK_HEADERS"
 GNUSTEP_NETWORK_LIBRARIES=$(echo "$GNUSTEP_PREFIX$GNUSTEP_NETWORK_LIBRARIES" | sed "s/@libdir@/$LIBDIR/g")
+GNUSTEP_NETWORK_RESOURCES=$(echo "$GNUSTEP_PREFIX$GNUSTEP_NETWORK_RESOURCES" | sed "s/@libdir@/$LIBDIR/g")
 GNUSTEP_NETWORK_DOC="$GNUSTEP_PREFIX$GNUSTEP_NETWORK_DOC"
 GNUSTEP_NETWORK_DOC_MAN="$GNUSTEP_PREFIX$GNUSTEP_NETWORK_DOC_MAN"
 GNUSTEP_NETWORK_DOC_INFO="$GNUSTEP_PREFIX$GNUSTEP_NETWORK_DOC_INFO"
@@ -536,6 +570,7 @@ GNUSTEP_LOCAL_ADMIN_TOOLS="$GNUSTEP_PREFIX$GNUSTEP_LOCAL_ADMIN_TOOLS"
 GNUSTEP_LOCAL_LIBRARY=$(echo "$GNUSTEP_PREFIX$GNUSTEP_LOCAL_LIBRARY" | sed "s/@libdir@/$LIBDIR/g")
 GNUSTEP_LOCAL_HEADERS="$GNUSTEP_PREFIX$GNUSTEP_LOCAL_HEADERS"
 GNUSTEP_LOCAL_LIBRARIES=$(echo "$GNUSTEP_PREFIX$GNUSTEP_LOCAL_LIBRARIES" | sed "s/@libdir@/$LIBDIR/g")
+GNUSTEP_LOCAL_RESOURCES=$(echo "$GNUSTEP_PREFIX$GNUSTEP_LOCAL_RESOURCES" | sed "s/@libdir@/$LIBDIR/g")
 GNUSTEP_LOCAL_DOC="$GNUSTEP_PREFIX$GNUSTEP_LOCAL_DOC"
 GNUSTEP_LOCAL_DOC_MAN="$GNUSTEP_PREFIX$GNUSTEP_LOCAL_DOC_MAN"
 GNUSTEP_LOCAL_DOC_INFO="$GNUSTEP_PREFIX$GNUSTEP_LOCAL_DOC_INFO"
@@ -830,6 +865,9 @@ AC_SUBST(GNUSTEP_SYSTEM_HEADERS)
 AC_MSG_CHECKING([for System Libraries directory])
 AC_MSG_RESULT($GNUSTEP_SYSTEM_LIBRARIES)
 AC_SUBST(GNUSTEP_SYSTEM_LIBRARIES)
+AC_MSG_CHECKING([for System Resources directory])
+AC_MSG_RESULT($GNUSTEP_SYSTEM_RESOURCES)
+AC_SUBST(GNUSTEP_SYSTEM_RESOURCES)
 AC_MSG_CHECKING([for System Documentation directory])
 AC_MSG_RESULT($GNUSTEP_SYSTEM_DOC)
 AC_SUBST(GNUSTEP_SYSTEM_DOC)
@@ -864,6 +902,9 @@ AC_SUBST(GNUSTEP_NETWORK_HEADERS)
 AC_MSG_CHECKING([for Network Libraries directory])
 AC_MSG_RESULT($GNUSTEP_NETWORK_LIBRARIES)
 AC_SUBST(GNUSTEP_NETWORK_LIBRARIES)
+AC_MSG_CHECKING([for Network Resources directory])
+AC_MSG_RESULT($GNUSTEP_NETWORK_RESOURCES)
+AC_SUBST(GNUSTEP_NETWORK_RESOURCES)
 AC_MSG_CHECKING([for Network Documentation directory])
 AC_MSG_RESULT($GNUSTEP_NETWORK_DOC)
 AC_SUBST(GNUSTEP_NETWORK_DOC)
@@ -898,6 +939,9 @@ AC_SUBST(GNUSTEP_LOCAL_HEADERS)
 AC_MSG_CHECKING([for Local Libraries directory])
 AC_MSG_RESULT($GNUSTEP_LOCAL_LIBRARIES)
 AC_SUBST(GNUSTEP_LOCAL_LIBRARIES)
+AC_MSG_CHECKING([for Local Resources directory])
+AC_MSG_RESULT($GNUSTEP_LOCAL_RESOURCES)
+AC_SUBST(GNUSTEP_LOCAL_RESOURCES)
 AC_MSG_CHECKING([for Local Documentation directory])
 AC_MSG_RESULT($GNUSTEP_LOCAL_DOC)
 AC_SUBST(GNUSTEP_LOCAL_DOC)
@@ -929,9 +973,12 @@ AC_SUBST(GNUSTEP_USER_DIR_LIBRARY)
 AC_MSG_CHECKING([for User Headers directory])
 AC_MSG_RESULT($GNUSTEP_USER_DIR_HEADERS)
 AC_SUBST(GNUSTEP_USER_DIR_HEADERS)
-AC_MSG_CHECKING([for User Libraries directory])
+AC_MSG_CHECKING([for User  directory])
 AC_MSG_RESULT($GNUSTEP_USER_DIR_LIBRARIES)
 AC_SUBST(GNUSTEP_USER_DIR_LIBRARIES)
+AC_MSG_CHECKING([for User Resources directory])
+AC_MSG_RESULT($GNUSTEP_USER_DIR_RESOURCES)
+AC_SUBST(GNUSTEP_USER_DIR_RESOURCES)
 AC_MSG_CHECKING([for User Documentation directory])
 AC_MSG_RESULT($GNUSTEP_USER_DIR_DOC)
 AC_SUBST(GNUSTEP_USER_DIR_DOC)
@@ -1133,6 +1180,12 @@ fi
 
 GS_CHECK_OBJC_RUNTIME()
 GS_BLOCKS_SUPPORT()
+
+# Add runtime header directory flags to system preprocessor flags.
+INCLUDES="$libobjc_CFLAGS $INCLUDES"
+# Add runtime library directory flags to system link flags.
+LIB_DIR="$libobjc_LIBDIR $LIB_DIR"
+
 #--------------------------------------------------------------------
 # Check if libobjc was compiled with thread support.
 #--------------------------------------------------------------------

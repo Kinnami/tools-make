@@ -1,3 +1,71 @@
+2026-11-08  Quin Gillespie <trypsynth@gmail.com>
+
+	* gnustep-config.in:
+	Clear MAKEFLAGS before running make, so the options and overrides of
+	a calling make (GNU make 4.4 or later) no longer reach it.  'make -n'
+	got the echo command instead of the flags, and an override that calls
+	gnustep-config recursed forever.  Report a missing or failing make on
+	stderr with a non-zero exit status instead of printing nothing.
+
+2026-09-30  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* configure.ac:
+	* configure:
+	Add a check for the GCC version so we don't allow unsupported compiler
+	versions unless the new -disable-gcc-version-check Roption is used.
+
+2026-09-04  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* configure.ac:
+	* configure:
+	* aclocal.m4:
+	Another attempt to correctly pass pkginfo results for libobjc2 onwards.
+
+2026-09-01  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* configure.ac:
+	* configure:
+	Revert C11 change in case it is breaking ng build on some platforms.
+
+2026-08-27  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* configure.ac:
+	* configure:
+	Enable -std=gnu11 to use the C11 standard with gnu extensions when
+        building GNUstep stuff.  This is the newest standard supported by the
+	oldest compiler that the project currently allows.
+	* TestFramework/GNUmakefile.in:
+	Fix to turn off deprecation warnings only on OSX as previously intended.
+	The rationale is that GNUstep aims to maintain APIs after Apple remove
+	them, so we don't want to flag Apple deprecation warnings but we do
+	want to flag GNUstep deprecation warnings.
+
+2026-08-14  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Documentation/gnustep-filesystem.texi:
+	* FilesystemLayouts/apple:
+	* FilesystemLayouts/debian:
+	* FilesystemLayouts/fhs:
+	* FilesystemLayouts/fhs-system:
+	* FilesystemLayouts/gershwin:
+	* FilesystemLayouts/gnustep:
+	* FilesystemLayouts/gnustep-with-network:
+	* FilesystemLayouts/mac:
+	* FilesystemLayouts/next:
+	* FilesystemLayouts/standalone:
+	* GNUstep-strict-v2.conf.in:
+	* GNUstep.conf.in:
+	* GNUstep.csh.in:
+	* GNUstep.sh.in:
+	* Instance/tool.make:
+	* configure.ac:
+	* filesystem.csh.in:
+	* filesystem.make.in:
+	* filesystem.sh.in:
+	* gnustep-config.in:
+	* configure:
+	Update non-bundled resource configuration
+
 2025-11-19  Richard Frith-Macdonald <rfm@gnu.org>
 
 	* Instance/Documentation/autogsdoc.make:

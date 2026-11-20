@@ -769,6 +769,12 @@ ifeq ($(GNUSTEP_TARGET_OS), windows)
   endif
 endif
 
+ifeq ($(GNUSTEP_TARGET_CPU),s390x)
+  # On the s390x we need a special flag to get the compiler to
+  # support stack trace using __builtin_return_address().
+  ADDITIONAL_FLAGS += -mbackchain
+endif
+
 # Sanitization must be enabled explicitly and shall _not_ be used in
 # production, as it may leak sensitive info or result in privilege
 # escalation due to unchecked use of variables
